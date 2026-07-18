@@ -6,8 +6,8 @@ contract CLToken2 is CLToken {
     error SenderIsLock(address user);
     error ReceiverIsLock(address user);
 
-    mapping(address sender => bool isLocked) private _sendersIsLocked;
-    mapping(address receiver => bool isLocked) private _receiversIsLocked;
+    mapping(address sender => bool isLocked) private _sendersIsBlocked;
+    mapping(address receiver => bool isLocked) private _receiversIsBlocked;
     function initialize2() public reinitializer(2) {}
 
     function modifySender(address sender, bool islocked) public onlyOwner {
@@ -46,12 +46,12 @@ contract CLToken2 is CLToken {
 
     modifier checkSender(address owner) {
         owner = owner == address(0) ? msg.sender : owner;
-        if (_sendersIsLocked[owner]) revert SenderIsLock(owner);
+        if (_sendersIsBlocked[owner]) revert SenderIsLock(owner);
         _;
     }
 
     modifier checkReceiver(address receiver) {
-        if (_receiversIsLocked[receiver]) revert ReceiverIsLock(receiver);
+        if (_receiversIsBlocked[receiver]) revert ReceiverIsLock(receiver);
         _;
     }
 

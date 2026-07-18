@@ -55,6 +55,7 @@ contract CLTokenUUPS is Test {
         address proxy2;
         bytes memory _data = abi.encodeCall(CLToken.initialize, ("Token", "tkn", 10 ether, 11 ether, user2));
         vm.expectRevert(CLToken.InitialSupplyLessThanCap.selector);
+
         proxy2 = address(new ERC1967Proxy(address(baseToken2), _data));
         vm.stopPrank();
     }

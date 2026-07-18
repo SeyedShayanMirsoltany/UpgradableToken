@@ -25,10 +25,37 @@ contract CLTokenUUPS is Test {
         vm.stopPrank();
     }
 
+    function testInitialOwnerNotZero() public {
+        vm.startPrank(user2);
+        CLToken baseToken2 = new CLToken();
+        address proxy2;
+        bytes memory _data = abi.encodeCall(CLToken.initialize, ("Token", "tkn", 10 ether, 1 ether, address(0)));
+        vm.expectRevert(CLToken.InitialOwnerNotZero.selector);
+        proxy2 = address(new ERC1967Proxy(address(baseToken2), _data));
+        vm.stopPrank();
+    }
+
+    function testInitialOwner() public {
+        vm.startPrank(user1);
+        address owner = CLToken(proxy).owner();
+        vm.assertEq(owner, user1);
+        vm.stopPrank();
+    }
+
     function testNothing() public {
         vm.startPrank(user1);
         uint256 balance = CLToken(proxy).balanceOf(user1);
         vm.assertEq(balance, 1 ether);
+        vm.stopPrank();
+    }
+
+    function testInitialSupplyLessThanCap() public {
+        vm.startPrank(user2);
+        CLToken baseToken2 = new CLToken();
+        address proxy2;
+        bytes memory _data = abi.encodeCall(CLToken.initialize, ("Token", "tkn", 10 ether, 11 ether, user2));
+        vm.expectRevert(CLToken.InitialSupplyLessThanCap.selector);
+        proxy2 = address(new ERC1967Proxy(address(baseToken2), _data));
         vm.stopPrank();
     }
 

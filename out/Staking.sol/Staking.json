@@ -1,0 +1,1 @@
+{"abi":[],"bytecode":{"object":"0x","linkReferences":{}},"deployedBytecode":{"object":"0x","linkReferences":{}},"ast":{"absolutePath":"src/staking/Staking.sol","id":2629,"exportedSymbols":{},"nodeType":"SourceUnit","src":"32:25:18","nodes":[{"id":2628,"nodeType":"PragmaDirective","src":"32:24:18","nodes":[],"literals":["solidity","^","0.8",".24"]}],"license":"MIT"},"id":18}

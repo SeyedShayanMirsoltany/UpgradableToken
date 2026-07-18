@@ -1,0 +1,1 @@
+{"abi":[],"bytecode":{"object":"0x","linkReferences":{}},"deployedBytecode":{"object":"0x","linkReferences":{}},"ast":{"absolutePath":"src/treasury/Treasury.sol","id":3021,"exportedSymbols":{},"nodeType":"SourceUnit","src":"32:25:21","nodes":[{"id":3020,"nodeType":"PragmaDirective","src":"32:24:21","nodes":[],"literals":["solidity","^","0.8",".24"]}],"license":"MIT"},"id":21}

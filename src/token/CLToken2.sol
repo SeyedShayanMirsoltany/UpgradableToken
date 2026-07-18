@@ -11,19 +11,19 @@ contract CLToken2 is CLToken {
     function initialize2() public reinitializer(2) {}
 
     function modifySender(address sender, bool islocked) public onlyOwner {
-        _sendersIsLocked[sender] = islocked;
+        _sendersIsBlocked[sender] = islocked;
     }
 
     function modifyReceiver(address receiver, bool islocked) public onlyOwner {
-        _receiversIsLocked[receiver] = islocked;
+        _receiversIsBlocked[receiver] = islocked;
     }
 
     function getSenderLockStatus(address user) public view returns (bool) {
-        return _sendersIsLocked[user];
+        return _sendersIsBlocked[user];
     }
 
     function getReceiverLockStatus(address user) public view returns (bool) {
-        return _receiversIsLocked[user];
+        return _receiversIsBlocked[user];
     }
 
     function _mint(address account, uint256 amount) internal override checkReceiver(account) {

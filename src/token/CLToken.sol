@@ -6,7 +6,9 @@ import "@openzeppelin-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin-upgradeable/token/ERC20/extensions/ERC20CappedUpgradeable.sol";
 import "@openzeppelin-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
 import "@openzeppelin-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
-contract CLToken is ERC20CappedUpgradeable, ERC20PausableUpgradeable, ERC20BurnableUpgradeable, UUPSUpgradeable, OwnableUpgradeable {
+import "@openzeppelin-upgradeable/access/AccessControlUpgradeable.sol";
+contract CLToken is ERC20CappedUpgradeable, ERC20PausableUpgradeable, ERC20BurnableUpgradeable, UUPSUpgradeable, OwnableUpgradeable, AccessControlUpgradeable {
+    bytes32 private PAUSER_ROLE = keccak256("PAUSER_ROLE");
     error InitialOwnerIsZero();
     error InitialSupplyExceedsCap();
     function initialize(string memory name_, string memory symbol_, uint256 cap_, uint256 initialSupply_, address initialOwner_) public initializer {
@@ -18,6 +20,8 @@ contract CLToken is ERC20CappedUpgradeable, ERC20PausableUpgradeable, ERC20Burna
         __ERC20Pausable_init();
         __ERC20Burnable_init();
         __Ownable_init();
+        __AccessControl_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, initialOwner_);
         _transferOwnership(initialOwner_);
         _mint(initialOwner_, initialSupply_);
     }
@@ -38,11 +42,11 @@ contract CLToken is ERC20CappedUpgradeable, ERC20PausableUpgradeable, ERC20Burna
         super._beforeTokenTransfer(from, to, amount);
     }
 
-    function pause() external onlyOwner {
+    function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
-    function unpause() external onlyOwner {
+    function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 

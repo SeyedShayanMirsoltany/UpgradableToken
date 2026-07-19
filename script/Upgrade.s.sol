@@ -7,12 +7,14 @@ import "@openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract Deploy2 is Script {
     function run() public {
-        address deployer = 0x38c30A38cbD6fD5333eb70eDA32078e51e7E3009;
-        vm.startBroadcast(deployer);
-        address proxy = 0x95511296fcb546d379e31C9FD8BA30ebcFCC2Ff6;
+        uint256 privateKey = vm.envUint("PRIVATE_KEY");
+        address deployerAddress = vm.addr(privateKey);
+
+        vm.startBroadcast(privateKey);
+        address proxy = vm.envAddress("PROXY_ADDRESS");
         CLToken2 newToken = new CLToken2();
-        CLToken(proxy).upgradeToAndCall(address(newToken), abi.encodeCall(CLToken2.initialize2, ()));
-        console.log("deployer : ", deployer);
+        CLToken(proxy).upgradeToAndCall(address(newToken), abi.encodeCall(CLToken2.initialize2, (1000 ether)));
+        console.log("deployer : ", deployerAddress);
         console.log("proxy : ", proxy);
         vm.stopBroadcast();
     }

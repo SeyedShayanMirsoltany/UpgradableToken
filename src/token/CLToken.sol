@@ -7,21 +7,27 @@ import "@openzeppelin-upgradeable/token/ERC20/extensions/ERC20CappedUpgradeable.
 import "@openzeppelin-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
 import "@openzeppelin-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 contract CLToken is ERC20CappedUpgradeable, ERC20PausableUpgradeable, ERC20BurnableUpgradeable, UUPSUpgradeable, OwnableUpgradeable {
-    error InitialOwnerNotZero();
-    error InitialSupplyLessThanCap();
+    error InitialOwnerIsZero();
+    error InitialSupplyExceedsCap();
     function initialize(string memory name_, string memory symbol_, uint256 cap_, uint256 initialSupply_, address initialOwner_) public initializer {
+        if (initialOwner_ == address(0)) revert InitialOwnerIsZero();
+        if (initialSupply_ > cap_) revert InitialSupplyExceedsCap();
+
         __ERC20_init(name_, symbol_);
         __ERC20Capped_init(cap_);
         __ERC20Pausable_init();
         __ERC20Burnable_init();
         __Ownable_init();
-        if (initialOwner_ == address(0)) revert InitialOwnerNotZero();
-        if (initialSupply_ > cap_) revert InitialSupplyLessThanCap();
+        _transferOwnership(initialOwner_);
         _mint(initialOwner_, initialSupply_);
     }
 
     constructor() {
         _disableInitializers();
+    }
+
+    function mint(address account, uint256 amount) external onlyOwner {
+        _mint(account, amount);
     }
 
     function _mint(address account, uint256 amount) internal virtual override(ERC20Upgradeable, ERC20CappedUpgradeable) {

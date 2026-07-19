@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "../../lib/forge-std/src/test.sol";
+import { Test } from "../../lib/forge-std/src/test.sol";
 import "../../src/token/CLToken.sol";
 import "../../src/token/CLToken2.sol";
 import "@openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
@@ -25,12 +25,12 @@ contract CLTokenUUPS is Test {
         vm.stopPrank();
     }
 
-    function testInitialOwnerNotZero() public {
+    function testInitialOwnerIsZero() public {
         vm.startPrank(user2);
         CLToken baseToken2 = new CLToken();
         address proxy2;
         bytes memory _data = abi.encodeCall(CLToken.initialize, ("Token", "tkn", 10 ether, 1 ether, address(0)));
-        vm.expectRevert(CLToken.InitialOwnerNotZero.selector);
+        vm.expectRevert(CLToken.InitialOwnerIsZero.selector);
         proxy2 = address(new ERC1967Proxy(address(baseToken2), _data));
         vm.stopPrank();
     }
@@ -49,12 +49,12 @@ contract CLTokenUUPS is Test {
         vm.stopPrank();
     }
 
-    function testInitialSupplyLessThanCap() public {
+    function testInitialSupplyExceedsCap() public {
         vm.startPrank(user2);
         CLToken baseToken2 = new CLToken();
         address proxy2;
         bytes memory _data = abi.encodeCall(CLToken.initialize, ("Token", "tkn", 10 ether, 11 ether, user2));
-        vm.expectRevert(CLToken.InitialSupplyLessThanCap.selector);
+        vm.expectRevert(CLToken.InitialSupplyExceedsCap.selector);
 
         proxy2 = address(new ERC1967Proxy(address(baseToken2), _data));
         vm.stopPrank();
@@ -69,7 +69,7 @@ contract CLTokenUUPS is Test {
     function testVersion2() public {
         vm.startPrank(user1);
         CLToken2 baseToken = new CLToken2();
-        bytes memory _data = abi.encodeCall(CLToken2.initialize2, ());
+        bytes memory _data = abi.encodeCall(CLToken2.initialize2, (100 ether));
         CLToken(proxy).upgradeToAndCall(address(baseToken), _data);
         vm.assertEq(CLToken(proxy).version(), 2);
         vm.stopPrank();

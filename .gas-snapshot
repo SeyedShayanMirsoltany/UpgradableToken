@@ -1,0 +1,6 @@
+CLTokenUUPS:testInitialOwner() (gas: 19426)
+CLTokenUUPS:testInitialOwnerNotZero() (gas: 3275823)
+CLTokenUUPS:testInitialSupplyLessThanCap() (gas: 3275897)
+CLTokenUUPS:testNothing() (gas: 19878)
+CLTokenUUPS:testVersion() (gas: 19294)
+CLTokenUUPS:testVersion2() (gas: 3587034)

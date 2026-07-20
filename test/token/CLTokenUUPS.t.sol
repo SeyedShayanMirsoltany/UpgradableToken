@@ -131,6 +131,7 @@ contract CLTokenUUPS is Test {
         CLToken(proxy).upgradeToAndCall(address(baseToken), _data);
         vm.stopPrank();
     }
+
     function test_AdminCanUpgradeToV2() public {
         vm.startPrank(user1);
         CLToken2 baseToken = new CLToken2();

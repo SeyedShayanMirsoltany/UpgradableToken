@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
+import "./CustomRoles.sol";
 import "@openzeppelin/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -8,7 +9,6 @@ import "@openzeppelin-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeabl
 import "@openzeppelin-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import "@openzeppelin-upgradeable/access/AccessControlUpgradeable.sol";
 contract CLToken is ERC20CappedUpgradeable, ERC20PausableUpgradeable, ERC20BurnableUpgradeable, UUPSUpgradeable, OwnableUpgradeable, AccessControlUpgradeable {
-    bytes32 private PAUSER_ROLE = keccak256("PAUSER_ROLE");
     error InitialOwnerIsZero();
     error InitialSupplyExceedsCap();
     function initialize(string memory name_, string memory symbol_, uint256 cap_, uint256 initialSupply_, address initialOwner_) public initializer {
@@ -22,6 +22,9 @@ contract CLToken is ERC20CappedUpgradeable, ERC20PausableUpgradeable, ERC20Burna
         __Ownable_init();
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner_);
+        _grantRole(PAUSER_ROLE, initialOwner_);
+        _grantRole(MINTER_ROLE, initialOwner_);
+        _grantRole(BURNER_ROLE, initialOwner_);
         _transferOwnership(initialOwner_);
         _mint(initialOwner_, initialSupply_);
     }
@@ -30,11 +33,11 @@ contract CLToken is ERC20CappedUpgradeable, ERC20PausableUpgradeable, ERC20Burna
         _disableInitializers();
     }
 
-    function mint(address account, uint256 amount) external onlyOwner {
+    function mint(address account, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(account, amount);
     }
 
-    function _mint(address account, uint256 amount) internal virtual override(ERC20Upgradeable, ERC20CappedUpgradeable) {
+    function _mint(address account, uint256 amount) internal virtual override(ERC20Upgradeable, ERC20CappedUpgradeable) onlyRole(MINTER_ROLE) {
         super._mint(account, amount);
     }
 

@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 import { Test } from "../../lib/forge-std/src/test.sol";
 import "../../src/token/CLToken.sol";
 import "../../src/token/CLToken2.sol";
+import "../../src/token/CustomRoles.sol";
 import "@openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 contract CLTokenUUPS is Test {
     address private user1;
@@ -35,19 +36,26 @@ contract CLTokenUUPS is Test {
         vm.stopPrank();
     }
 
-    function testInitialOwner() public {
+    function test_Initialize_SetsInitialState() public {
         vm.startPrank(user1);
-        address owner = CLToken(proxy).owner();
-        vm.assertEq(owner, user1);
+        vm.assertEq(CLToken(proxy).owner(), user1);
+        vm.assertEq(CLToken(proxy).symbol(), "tkn");
+        vm.assertEq(CLToken(proxy).totalSupply(), 1 ether);
+        vm.assertEq(CLToken(proxy).name(), "Token");
+        vm.assertEq(CLToken(proxy).cap(), 10 ether);
+        vm.assertEq(CLToken(proxy).balanceOf(user1), 1 ether);
         vm.stopPrank();
     }
 
-    function testNothing() public {
-        vm.startPrank(user1);
-        uint256 balance = CLToken(proxy).balanceOf(user1);
-        vm.assertEq(balance, 1 ether);
+    function test_RevertWhen_InitializeCalledTwice() public {
+        vm.startPrank(user2);
+        CLToken baseToken2 = CLToken(proxy);
+        vm.expectRevert();
+        baseToken2.initialize("Token", "tkn", 10 ether, 11 ether, user2);
         vm.stopPrank();
     }
+
+    function test_RevertWhen_ImplementationIsInitializedDirectly() public {}
 
     function testInitialSupplyExceedsCap() public {
         vm.startPrank(user2);
@@ -57,6 +65,26 @@ contract CLTokenUUPS is Test {
         vm.expectRevert(CLToken.InitialSupplyExceedsCap.selector);
 
         proxy2 = address(new ERC1967Proxy(address(baseToken2), _data));
+        vm.stopPrank();
+    }
+
+    function testPauseRole() public {
+        vm.startPrank(user2);
+        vm.expectRevert();
+        CLToken(proxy).pause();
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        CLToken(proxy).grantRole(PAUSER_ROLE, user2);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        CLToken(proxy).pause();
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        vm.expectRevert();
+        CLToken(proxy).mint(user2, 1 ether);
         vm.stopPrank();
     }
 

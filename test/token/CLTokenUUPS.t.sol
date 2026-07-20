@@ -11,9 +11,7 @@ contract CLTokenUUPS is Test {
     address private user3;
     address private user4;
     address private proxy;
-    function setUp() public {}
-
-    constructor() {
+    function setUp() public {
         user1 = vm.addr(100);
         user2 = vm.addr(200);
         user3 = vm.addr(300);
@@ -26,6 +24,8 @@ contract CLTokenUUPS is Test {
         vm.stopPrank();
     }
 
+    constructor() {}
+
     function test_ApprovedSpenderCanTransferFrom() public {
         vm.startPrank(user1);
         uint256 user1Balance = CLToken(proxy).balanceOf(user1);
@@ -34,8 +34,8 @@ contract CLTokenUUPS is Test {
 
         vm.startPrank(user3);
         CLToken(proxy).transferFrom(user1, user3, 1000 wei);
-        vm.assertEq(CLToken(proxy).balanceOf(user3), 1000 wei);
-        vm.assertEq(CLToken(proxy).balanceOf(user1), user1Balance - 1000 wei);
+        assertEq(CLToken(proxy).balanceOf(user3), 1000 wei);
+        assertEq(CLToken(proxy).balanceOf(user1), user1Balance - 1000 wei);
         vm.stopPrank();
     }
 
@@ -73,7 +73,7 @@ contract CLTokenUUPS is Test {
 
     function testVersion() public {
         vm.startPrank(user1);
-        vm.assertEq(CLToken(proxy).version(), 1);
+        assertEq(CLToken(proxy).version(), 1);
         vm.stopPrank();
     }
 
@@ -89,12 +89,12 @@ contract CLTokenUUPS is Test {
 
     function test_Initialize_SetsInitialState() public {
         vm.startPrank(user1);
-        vm.assertEq(CLToken(proxy).owner(), user1);
-        vm.assertEq(CLToken(proxy).symbol(), "tkn");
-        vm.assertEq(CLToken(proxy).totalSupply(), 1 ether);
-        vm.assertEq(CLToken(proxy).name(), "Token");
-        vm.assertEq(CLToken(proxy).cap(), 10 ether);
-        vm.assertEq(CLToken(proxy).balanceOf(user1), 1 ether);
+        assertEq(CLToken(proxy).owner(), user1);
+        assertEq(CLToken(proxy).symbol(), "tkn");
+        assertEq(CLToken(proxy).totalSupply(), 1 ether);
+        assertEq(CLToken(proxy).name(), "Token");
+        assertEq(CLToken(proxy).cap(), 10 ether);
+        assertEq(CLToken(proxy).balanceOf(user1), 1 ether);
         vm.stopPrank();
     }
 
@@ -117,11 +117,50 @@ contract CLTokenUUPS is Test {
         vm.stopPrank();
     }
 
-    function test_RevertWhen_ImplementationIsInitializedDirectly() public {}
+    function test_RevertWhen_ImplementationIsInitializedDirectly() public {
+        vm.startPrank(user1);
+        CLToken2 baseToken12 = new CLToken2();
+        vm.expectRevert();
+        baseToken12.initialize("Token", "tkn", 10 ether, 1 ether, user1);
+        vm.stopPrank();
+    }
 
-    function test_UpgradePreservesExistingState() public {}
+    function test_UpgradePreservesExistingState() public {
+        vm.startPrank(user1);
+        CLToken(proxy).mint(user3, 1 ether);
+        assertEq(CLToken(proxy).balanceOf(user3), 1 ether);
+        vm.stopPrank();
 
-    function test_MinterCanMint() public {}
+        vm.startPrank(user3);
+        CLToken(proxy).approve(user4, 100000 wei);
+        assertEq(CLToken(proxy).allowance(user3, user4), 100000 wei);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        CLToken2 baseToken = new CLToken2();
+        bytes memory _data = abi.encodeCall(CLToken2.initialize2, (100 ether));
+        CLToken(proxy).upgradeToAndCall(address(baseToken), _data);
+        assertEq(CLToken(proxy).version(), 2);
+        assertEq(CLToken(proxy).allowance(user3, user4), 100000 wei);
+        vm.stopPrank();
+
+        vm.startPrank(user4);
+        CLToken(proxy).transferFrom(user3, user4, 100000 wei);
+        assertEq(CLToken(proxy).balanceOf(user4), 100000 wei);
+        vm.stopPrank();
+    }
+
+    function test_MinterCanMint() public {
+        vm.startPrank(user3);
+        vm.expectRevert();
+        CLToken(proxy).mint(user2, 1 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        CLToken(proxy).mint(user2, 1 ether);
+        assertEq(CLToken(proxy).balanceOf(user2), 1 ether);
+        vm.stopPrank();
+    }
 
     function test_RevertWhen_NonAdminUpgrades() public {
         vm.startPrank(user2);
@@ -137,7 +176,7 @@ contract CLTokenUUPS is Test {
         CLToken2 baseToken = new CLToken2();
         bytes memory _data = abi.encodeCall(CLToken2.initialize2, (100 ether));
         CLToken(proxy).upgradeToAndCall(address(baseToken), _data);
-        vm.assertEq(CLToken(proxy).version(), 2);
+        assertEq(CLToken(proxy).version(), 2);
         vm.stopPrank();
     }
 }

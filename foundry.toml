@@ -6,6 +6,7 @@ remappings=[
     "@chainlink/=lib/chainlink-brownie-contracts/contracts/",
     "@ccip-contracts/=lib/ccip-contracts/contracts/",
     "@openzeppelin=lib/openzeppelin-contracts/contracts",
-    "@openzeppelin-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts"
+    "@openzeppelin-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts",
+    "@utils/=src/utils"
 ]
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

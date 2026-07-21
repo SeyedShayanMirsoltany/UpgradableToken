@@ -15,4 +15,5 @@ interface IStakingRewards {
     function setRewardsDuration(uint256 newDuration) external;
     function pause() external;
     function unpause() external;
+    function getPauseStatus() external returns (bool);
 }

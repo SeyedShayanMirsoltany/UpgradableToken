@@ -5,16 +5,20 @@ import "@utils/CustomRoles.sol";
 import "@openzeppelin/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/token/ERC20/IERC20.sol";
-import "@openzeppelin/token/ERC20/IERC20.sol";
-import "@openzeppelin-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable {
+contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+
     event Staked(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
     event RewardAdded(uint256 reward);
     event RewardsDurationUpdated(uint256 oldDuration, uint256 newDuration);
 
+    error OperationIsPaused();
     error InitialOwnerIsZero();
     error Staking__ZeroAddress();
     error Staking__ZeroAmount();
@@ -34,7 +38,7 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable 
     uint256 private rewardRate;
     uint256 private lastUpdateTime;
     uint256 private rewardPerTokenStored;
-
+    bool private isPaused;
     mapping(address => uint256) private userRewardPerTokenPaid;
     mapping(address => uint256) private rewards;
 
@@ -48,10 +52,18 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable 
         stakingToken = IERC20Upgradeable(stakingToken_);
         rewardsToken = IERC20Upgradeable(rewardsToken_);
         __Ownable_init();
+        __AccessControl_init();
+        __ReentrancyGuard_init();
         _transferOwnership(admin_);
+        _grantRole(DEFAULT_ADMIN_ROLE, admin_);
+        _grantRole(PAUSER_ROLE, admin_);
     }
 
-    function stake(uint256 amount) external override {
+    function stake(uint256 amount) external override checkIsPaused nonReentrant updateReward(msg.sender) {
+        require(amount > 0, Staking__ZeroAmount());
+        totalStaked += amount;
+        balances[msg.sender] += amount;
+        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
         emit Staked(msg.sender, amount);
     }
 
@@ -65,11 +77,13 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable 
 
     function notifyRewardAmount(uint256 reward) external override {}
 
-    function lastTimeRewardApplicable() external view override returns (uint256) {}
+    function _lastTimeRewardApplicable() internal view returns (uint256) {
+        return lastUpdateTime;
+    }
 
-    function rewardPerToken() external view override returns (uint256) {}
+    function _rewardPerToken() internal view returns (uint256) {}
 
-    function earned(address account) external view override returns (uint256) {}
+    function _earned(address account) internal view returns (uint256) {}
 
     function getRewardForDuration() external view override returns (uint256) {}
 
@@ -77,11 +91,49 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable 
         emit RewardsDurationUpdated(rewardsDuration, newDuration);
     }
 
-    function pause() external override {}
+    function lastTimeRewardApplicable() external view override returns (uint256) {
+        return _lastTimeRewardApplicable();
+    }
 
-    function unpause() external override {}
+    function rewardPerToken() external view override returns (uint256) {
+        return _rewardPerToken();
+    }
+
+    function earned(address account) external view override returns (uint256) {
+        return _earned(account);
+    }
+
+    function getPauseStatus() external view override onlyRole(PAUSER_ROLE) returns (bool) {
+        return isPaused;
+    }
+
+    function pause() external override onlyRole(PAUSER_ROLE) {
+        isPaused = true;
+    }
+
+    function unpause() external override onlyRole(PAUSER_ROLE) {
+        isPaused = false;
+    }
 
     function _updateReward(address account) internal {}
 
     function _authorizeUpgrade(address newImplementation) internal override {}
+
+    modifier checkIsPaused() {
+        require(!isPaused, OperationIsPaused());
+        _;
+    }
+
+    modifier updateReward(address account) {
+        // 1. به‌روزرسانی حسابداری کل استخر
+        rewardPerTokenStored = _rewardPerToken();
+        lastUpdateTime = _lastTimeRewardApplicable();
+
+        // 2. ذخیره پاداش کاربر تا همین لحظه
+        if (account != address(0)) {
+            rewards[account] = _earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        }
+        _;
+    }
 }

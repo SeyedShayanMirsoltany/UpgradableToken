@@ -4,13 +4,14 @@ import "../interfaces/IStakingRewards.sol";
 import "@utils/CustomRoles.sol";
 import "@openzeppelin/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/token/ERC20/IERC20.sol";
+import "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
+    using SafeERC20 for IERC20;
 
     event Staked(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
@@ -27,8 +28,8 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     error Staking__RewardPeriodNotFinished();
     error Staking__NoRewardAvailable();
 
-    IERC20Upgradeable private stakingToken;
-    IERC20Upgradeable private rewardsToken;
+    IERC20 private stakingToken;
+    IERC20 private rewardsToken;
 
     uint256 private totalStaked;
     mapping(address => uint256) private balances;
@@ -41,22 +42,27 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     bool private isPaused;
     mapping(address => uint256) private userRewardPerTokenPaid;
     mapping(address => uint256) private rewards;
+    uint256 private constant PRECISION = 1e18;
 
-    function initialize(address stakingToken_, address rewardsToken_, address admin_, uint256 rewardsDuration_) external override {
+    function initialize(address stakingToken_, address rewardsToken_, address admin_, uint256 rewardsDuration_) external override initializer {
         if (admin_ == address(0)) revert InitialOwnerIsZero();
         if (stakingToken_ == address(0)) revert Staking__ZeroAddress();
         if (rewardsToken_ == address(0)) revert Staking__ZeroAddress();
         if (rewardsDuration_ <= 0) revert Staking__ZeroAmount();
 
         rewardsDuration = rewardsDuration_;
-        stakingToken = IERC20Upgradeable(stakingToken_);
-        rewardsToken = IERC20Upgradeable(rewardsToken_);
+        stakingToken = IERC20(stakingToken_);
+        rewardsToken = IERC20(rewardsToken_);
         __Ownable_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
         _transferOwnership(admin_);
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(PAUSER_ROLE, admin_);
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function stake(uint256 amount) external override checkIsPaused nonReentrant updateReward(msg.sender) {
@@ -68,26 +74,59 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     }
 
     function withdraw(uint256 amount) external override {
+        _withdraw(amount);
+    }
+
+    function _withdraw(uint256 amount) internal checkIsPaused nonReentrant updateReward(msg.sender) {
+        require(amount > 0, Staking__ZeroAmount());
+        require(balances[msg.sender] >= amount, Staking__InsufficientStakedBalance());
+        totalStaked -= amount;
+        balances[msg.sender] -= amount;
+        stakingToken.transfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
     }
 
-    function claimReward() external override {}
+    function claimReward() external override {
+        _claimReward();
+    }
 
-    function exit() external override {}
+    function _claimReward() internal checkIsPaused nonReentrant updateReward(msg.sender) {
+        uint256 reward = rewards[msg.sender];
+        require(reward > 0, Staking__NoRewardAvailable());
+        rewards[msg.sender] = 0;
+        rewardsToken.safeTransfer(msg.sender, reward);
+        emit RewardPaid(msg.sender, reward);
+    }
+
+    function exit() external override {
+        uint256 amount = balances[msg.sender];
+        _withdraw(amount);
+        _claimReward();
+    }
 
     function notifyRewardAmount(uint256 reward) external override {}
 
     function _lastTimeRewardApplicable() internal view returns (uint256) {
-        return lastUpdateTime;
+        if (block.timestamp >= periodFinish) return periodFinish;
+        return block.timestamp;
     }
 
-    function _rewardPerToken() internal view returns (uint256) {}
+    function _rewardPerToken() internal view returns (uint256) {
+        if (totalStaked == 0) return rewardPerTokenStored;
+        uint256 elapsedTime = _lastTimeRewardApplicable() - lastUpdateTime;
+        return rewardPerTokenStored + ((elapsedTime * rewardRate * PRECISION) / totalStaked);
+    }
 
-    function _earned(address account) internal view returns (uint256) {}
+    function _earned(address account) internal view returns (uint256) {
+        return (balances[account] * (_rewardPerToken() - userRewardPerTokenPaid[account])) / PRECISION / rewards[account];
+    }
 
-    function getRewardForDuration() external view override returns (uint256) {}
+    function getRewardForDuration() external view override returns (uint256) {
+        return rewardRate * rewardsDuration;
+    }
 
     function setRewardsDuration(uint256 newDuration) external override {
+        rewardsDuration = newDuration;
         emit RewardsDurationUpdated(rewardsDuration, newDuration);
     }
 
@@ -115,8 +154,6 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         isPaused = false;
     }
 
-    function _updateReward(address account) internal {}
-
     function _authorizeUpgrade(address newImplementation) internal override {}
 
     modifier checkIsPaused() {
@@ -137,3 +174,4 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         _;
     }
 }
+// slither . --include-paths "src/" --exclude-low --exclude-informational --exclude-optimization

@@ -18,7 +18,8 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     event RewardPaid(address indexed user, uint256 reward);
     event RewardAdded(uint256 reward);
     event RewardsDurationUpdated(uint256 oldDuration, uint256 newDuration);
-
+    event Paused(ddress indexed user);
+    event Unpaused(address indexed account);
     error OperationIsPaused();
     error InitialOwnerIsZero();
     error Staking__ZeroAddress();
@@ -77,12 +78,12 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         _withdraw(amount);
     }
 
-    function _withdraw(uint256 amount) internal checkIsPaused nonReentrant updateReward(msg.sender) {
+    function _withdraw(uint256 amount) internal nonReentrant updateReward(msg.sender) {
         require(amount > 0, Staking__ZeroAmount());
         require(balances[msg.sender] >= amount, Staking__InsufficientStakedBalance());
         totalStaked -= amount;
         balances[msg.sender] -= amount;
-        stakingToken.transfer(msg.sender, amount);
+        stakingToken.safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
     }
 
@@ -90,7 +91,7 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         _claimReward();
     }
 
-    function _claimReward() internal checkIsPaused nonReentrant updateReward(msg.sender) {
+    function _claimReward() internal nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         require(reward > 0, Staking__NoRewardAvailable());
         rewards[msg.sender] = 0;
@@ -100,11 +101,29 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
 
     function exit() external override {
         uint256 amount = balances[msg.sender];
-        _withdraw(amount);
-        _claimReward();
+        if (amount > 0) _withdraw(amount);
+        if (_earned(msg.sender) > 0) _claimReward();
     }
 
-    function notifyRewardAmount(uint256 reward) external override {}
+    function notifyRewardAmount(uint256 reward) external override onlyOwner updateReward(address(0)) {
+        if (reward == 0) revert Staking__ZeroAmount();
+
+        rewardsToken.safeTransferFrom(msg.sender, address(this), reward);
+
+        if (block.timestamp >= periodFinish) {
+            rewardRate = reward / rewardsDuration;
+        } else {
+            uint256 remainingTime = periodFinish - block.timestamp;
+            uint256 leftoverReward = remainingTime * rewardRate;
+
+            rewardRate = (reward + leftoverReward) / rewardsDuration;
+        }
+
+        lastUpdateTime = block.timestamp;
+        periodFinish = block.timestamp + rewardsDuration;
+
+        emit RewardAdded(reward);
+    }
 
     function _lastTimeRewardApplicable() internal view returns (uint256) {
         if (block.timestamp >= periodFinish) return periodFinish;
@@ -118,16 +137,17 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     }
 
     function _earned(address account) internal view returns (uint256) {
-        return (balances[account] * (_rewardPerToken() - userRewardPerTokenPaid[account])) / PRECISION / rewards[account];
+        return (balances[account] * (_rewardPerToken() - userRewardPerTokenPaid[account])) / PRECISION + rewards[account];
     }
 
     function getRewardForDuration() external view override returns (uint256) {
         return rewardRate * rewardsDuration;
     }
 
-    function setRewardsDuration(uint256 newDuration) external override {
+    function setRewardsDuration(uint256 newDuration) external override onlyOwner {
+        uint256 oldDuration = rewardsDuration;
         rewardsDuration = newDuration;
-        emit RewardsDurationUpdated(rewardsDuration, newDuration);
+        emit RewardsDurationUpdated(oldDuration, newDuration);
     }
 
     function lastTimeRewardApplicable() external view override returns (uint256) {
@@ -142,16 +162,20 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         return _earned(account);
     }
 
-    function getPauseStatus() external view override onlyRole(PAUSER_ROLE) returns (bool) {
+    function getPauseStatus() external view override returns (bool) {
         return isPaused;
     }
 
     function pause() external override onlyRole(PAUSER_ROLE) {
+        if (isPaused) revert OperationIsPaused();
         isPaused = true;
+        emit Paused(msg.sender);
     }
 
     function unpause() external override onlyRole(PAUSER_ROLE) {
+        if (!isPaused) revert OperationIsPaused();
         isPaused = false;
+        emit Paused(msg.sender);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override {}

@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 import { Test } from "../../lib/forge-std/src/test.sol";
-import "../../src/token/CLToken.sol";
 import "../../src/token/CLToken2.sol";
-import "../../src/staking/StakingRewards.sol";
 import "../../src/staking/StakingRewards2.sol";
-
 import "@utils/CustomRoles.sol";
 import "@openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
+
 contract Staking is Test {
     address private tokenOwner;
     address private stakingOwner;

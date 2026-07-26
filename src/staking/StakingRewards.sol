@@ -56,6 +56,7 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         __Ownable_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
+
         _transferOwnership(admin_);
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(PAUSER_ROLE, admin_);

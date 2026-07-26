@@ -5,12 +5,10 @@ import "@utils/CustomRoles.sol";
 import "@openzeppelin/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
-    using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeERC20 for IERC20;
 
     event Staked(address indexed user, uint256 amount);
@@ -18,8 +16,9 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     event RewardPaid(address indexed user, uint256 reward);
     event RewardAdded(uint256 reward);
     event RewardsDurationUpdated(uint256 oldDuration, uint256 newDuration);
-    event Paused(ddress indexed user);
+    event Paused(address indexed user);
     event Unpaused(address indexed account);
+
     error OperationIsPaused();
     error InitialOwnerIsZero();
     error Staking__ZeroAddress();
@@ -67,7 +66,7 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     }
 
     function stake(uint256 amount) external override checkIsPaused nonReentrant updateReward(msg.sender) {
-        require(amount > 0, Staking__ZeroAmount());
+        if (amount > 0) revert Staking__ZeroAmount();
         totalStaked += amount;
         balances[msg.sender] += amount;
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -79,8 +78,8 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     }
 
     function _withdraw(uint256 amount) internal nonReentrant updateReward(msg.sender) {
-        require(amount > 0, Staking__ZeroAmount());
-        require(balances[msg.sender] >= amount, Staking__InsufficientStakedBalance());
+        if (amount <= 0) revert Staking__ZeroAmount();
+        if (balances[msg.sender] < amount) revert Staking__InsufficientStakedBalance();
         totalStaked -= amount;
         balances[msg.sender] -= amount;
         stakingToken.safeTransfer(msg.sender, amount);
@@ -93,7 +92,7 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
 
     function _claimReward() internal nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
-        require(reward > 0, Staking__NoRewardAvailable());
+        if (reward <= 0) revert Staking__NoRewardAvailable();
         rewards[msg.sender] = 0;
         rewardsToken.safeTransfer(msg.sender, reward);
         emit RewardPaid(msg.sender, reward);
@@ -105,7 +104,7 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         if (_earned(msg.sender) > 0) _claimReward();
     }
 
-    function notifyRewardAmount(uint256 reward) external override onlyOwner updateReward(address(0)) {
+    function notifyRewardAmount(uint256 reward) external override checkIsPaused onlyOwner updateReward(address(0)) {
         if (reward == 0) revert Staking__ZeroAmount();
 
         rewardsToken.safeTransferFrom(msg.sender, address(this), reward);
@@ -145,6 +144,9 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     }
 
     function setRewardsDuration(uint256 newDuration) external override onlyOwner {
+        if (newDuration == 0) revert Staking__ZeroAmount();
+        if (block.timestamp >= periodFinish) revert Staking__RewardPeriodNotFinished();
+
         uint256 oldDuration = rewardsDuration;
         rewardsDuration = newDuration;
         emit RewardsDurationUpdated(oldDuration, newDuration);
@@ -175,13 +177,13 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     function unpause() external override onlyRole(PAUSER_ROLE) {
         if (!isPaused) revert OperationIsPaused();
         isPaused = false;
-        emit Paused(msg.sender);
+        emit Unpaused(msg.sender);
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     modifier checkIsPaused() {
-        require(!isPaused, OperationIsPaused());
+        if (!isPaused) revert OperationIsPaused();
         _;
     }
 
@@ -196,6 +198,10 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
             userRewardPerTokenPaid[account] = rewardPerTokenStored;
         }
         _;
+    }
+
+    function version() public view returns (uint8) {
+        return _getInitializedVersion();
     }
 }
 // slither . --include-paths "src/" --exclude-low --exclude-informational --exclude-optimization

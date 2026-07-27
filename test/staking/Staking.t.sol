@@ -13,6 +13,7 @@ contract Staking is Test {
     address private user4;
     address private tokenProxy;
     address private stakingProxy;
+    uint duration = block.timestamp + 10000000;
     function setUp() public {
         tokenOwner = vm.addr(100);
         stakingOwner = vm.addr(200);
@@ -27,7 +28,7 @@ contract Staking is Test {
 
         vm.startPrank(stakingOwner);
         StakingRewards stakingReward = new StakingRewards();
-        bytes memory _dataStaking = abi.encodeCall(StakingRewards.initialize, (tokenProxy, tokenProxy, stakingOwner, block.timestamp + 10000000));
+        bytes memory _dataStaking = abi.encodeCall(StakingRewards.initialize, (tokenProxy, tokenProxy, stakingOwner, duration));
         stakingProxy = address(new ERC1967Proxy(address(stakingReward), _dataStaking));
         vm.stopPrank();
     }
@@ -40,6 +41,16 @@ contract Staking is Test {
     function test_AdminCanUpgradeStakingToV2() public {
         _upgradeStaking();
         assertEq(StakingRewards(stakingProxy).version(), 2);
+    }
+
+    function test_Initialize_SetsCorrectValues() public {
+        vm.startPrank(stakingOwner);
+        assertEq(StakingRewards(stakingProxy).getStakingTokenAddress(), tokenProxy);
+        assertEq(StakingRewards(stakingProxy).getRewardTokenAddress(), tokenProxy);
+        assertEq(StakingRewards(stakingProxy).getRewardForDuration(), duration);
+        assertEq(StakingRewards(stakingProxy).owner(), stakingOwner);
+        assertEq(StakingRewards(stakingProxy).hasRole(PAUSER_ROLE, stakingOwner), true);
+        vm.stopPrank();
     }
 
     function _upgradeToken() internal {

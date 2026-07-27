@@ -36,7 +36,7 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
 
     uint256 private rewardsDuration;
     uint256 private periodFinish;
-    uint256 private rewardRate;
+    uint256 private rewardRate = 1;
     uint256 private lastUpdateTime;
     uint256 private rewardPerTokenStored;
     bool private isPaused;
@@ -66,8 +66,16 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         _disableInitializers();
     }
 
+    function getStakingTokenAddress() public view onlyOwner returns (address) {
+        return address(stakingToken);
+    }
+
+    function getRewardTokenAddress() public view onlyOwner returns (address) {
+        return address(rewardsToken);
+    }
+
     function stake(uint256 amount) external override checkIsPaused nonReentrant updateReward(msg.sender) {
-        if (amount > 0) revert Staking__ZeroAmount();
+        if (amount <= 0) revert Staking__ZeroAmount();
         totalStaked += amount;
         balances[msg.sender] += amount;
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -141,7 +149,8 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     }
 
     function getRewardForDuration() external view override returns (uint256) {
-        return rewardRate * rewardsDuration;
+        return rewardsDuration;
+        // return rewardRate * rewardsDuration;
     }
 
     function setRewardsDuration(uint256 newDuration) external override onlyOwner {

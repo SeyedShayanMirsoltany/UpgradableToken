@@ -1,1 +1,1 @@
-test_Initialize_SetsCorrectValues
+test_Initialize_RevertsWhenCalledTwice

@@ -48,8 +48,44 @@ contract Staking is Test {
         assertEq(StakingRewards(stakingProxy).getStakingTokenAddress(), tokenProxy);
         assertEq(StakingRewards(stakingProxy).getRewardTokenAddress(), tokenProxy);
         assertEq(StakingRewards(stakingProxy).getRewardForDuration(), duration);
+        vm.stopPrank();
+    }
+
+    function test_Initialize_SetsOwnerAndRoles() public {
+        vm.startPrank(stakingOwner);
+        bytes32 DEFAULT_ADMIN_ROLE = 0x00;
         assertEq(StakingRewards(stakingProxy).owner(), stakingOwner);
+        assertEq(StakingRewards(stakingProxy).hasRole(DEFAULT_ADMIN_ROLE, stakingOwner), true);
         assertEq(StakingRewards(stakingProxy).hasRole(PAUSER_ROLE, stakingOwner), true);
+        vm.stopPrank();
+    }
+
+    function test_Initialize_RevertsForZeroAddress() public {
+        vm.startPrank(stakingOwner);
+        StakingRewards stakingReward = new StakingRewards();
+        bytes memory _dataStaking = abi.encodeCall(StakingRewards.initialize, (address(0), tokenProxy, stakingOwner, duration));
+        vm.expectRevert(StakingRewards.Staking__ZeroAddress.selector);
+        address(new ERC1967Proxy(address(stakingReward), _dataStaking));
+
+        _dataStaking = abi.encodeCall(StakingRewards.initialize, (tokenProxy, address(0), stakingOwner, duration));
+        vm.expectRevert(StakingRewards.Staking__ZeroAddress.selector);
+        address(new ERC1967Proxy(address(stakingReward), _dataStaking));
+
+        _dataStaking = abi.encodeCall(StakingRewards.initialize, (tokenProxy, tokenProxy, address(0), duration));
+        vm.expectRevert(StakingRewards.InitialOwnerIsZero.selector);
+        address(new ERC1967Proxy(address(stakingReward), _dataStaking));
+
+        _dataStaking = abi.encodeCall(StakingRewards.initialize, (tokenProxy, tokenProxy, stakingOwner, 0));
+        vm.expectRevert(StakingRewards.Staking__ZeroAmount.selector);
+        address(new ERC1967Proxy(address(stakingReward), _dataStaking));
+
+        vm.stopPrank();
+    }
+
+    function test_Initialize_RevertsWhenCalledTwice() public {
+        vm.startPrank(stakingOwner);
+        vm.expectRevert();
+        StakingRewards(stakingProxy).initialize(tokenProxy, tokenProxy, stakingOwner, duration);
         vm.stopPrank();
     }
 

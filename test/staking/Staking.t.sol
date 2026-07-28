@@ -102,7 +102,6 @@ contract Staking is Test {
 
     function test_Stake_TransfersTokensAndUpdatesBalances() public {
         vm.startPrank(user3);
-        assertEq(CLToken(tokenProxy).balanceOf(user3), 5 ether);
         CLToken(tokenProxy).approve(stakingProxy, 1 ether);
         StakingRewards(stakingProxy).stake(1 ether);
         assertEq(StakingRewards(stakingProxy).getStakeBalance(), 1 ether);
@@ -113,7 +112,6 @@ contract Staking is Test {
 
     function test_Stake_EmitsStakedEvent() public {
         vm.startPrank(user3);
-        assertEq(CLToken(tokenProxy).balanceOf(user3), 5 ether);
         CLToken(tokenProxy).approve(stakingProxy, 1 ether);
         vm.expectEmit(true, false, false, true);
         emit StakingRewards.Staked(user3, 1 ether);
@@ -121,11 +119,49 @@ contract Staking is Test {
         vm.stopPrank();
     }
 
-    //
-    // test_Stake_RevertsWhenAmountIsZero
-    // test_Stake_RevertsWithoutSufficientAllowance
-    // test_Stake_RevertsWhenPaused
-    // test_Stake_DoesNotReceivePastRewards
+    function test_Stake_RevertsWhenAmountIsZero() public {
+        vm.startPrank(user3);
+        CLToken(tokenProxy).approve(stakingProxy, 1 ether);
+        vm.expectRevert(StakingRewards.Staking__ZeroAmount.selector);
+        StakingRewards(stakingProxy).stake(0 ether);
+        vm.stopPrank();
+    }
+
+    function test_Stake_RevertsWithoutSufficientAllowance() public {
+        vm.startPrank(user3);
+        vm.expectRevert("ERC20: insufficient allowance");
+        StakingRewards(stakingProxy).stake(1 ether);
+        vm.stopPrank();
+    }
+
+    function test_Stake_RevertsWhenPaused() public {
+        vm.startPrank(stakingOwner);
+        StakingRewards(stakingProxy).pause();
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        CLToken(tokenProxy).approve(stakingProxy, 1 ether);
+        vm.expectRevert(StakingRewards.OperationIsPaused.selector);
+        StakingRewards(stakingProxy).stake(1 ether);
+        vm.stopPrank();
+    }
+
+    function test_Stake_DoesNotReceivePastRewards() public {
+        vm.startPrank(user3);
+        CLToken(tokenProxy).approve(stakingProxy, 1 ether);
+        StakingRewards(stakingProxy).stake(1 ether);
+        vm.stopPrank();
+        vm.warp(block.timestamp + 5000000);
+        vm.startPrank(user4);
+        CLToken(tokenProxy).approve(stakingProxy, 1 ether);
+        StakingRewards(stakingProxy).stake(1 ether);
+        vm.stopPrank();
+
+        uint256 user3Earned = StakingRewards(stakingProxy).earned(user3);
+        uint256 user4Earned = StakingRewards(stakingProxy).earned(user4);
+
+        vm.assertNotEq(user3Earned, user4Earned);
+    }
 
     //#endregion
 

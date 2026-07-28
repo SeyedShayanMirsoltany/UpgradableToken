@@ -1,1 +1,1 @@
-test_Initialize_RevertsWhenCalledTwice
+test_Stake_TransfersTokensAndUpdatesBalances

@@ -74,6 +74,14 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         return address(rewardsToken);
     }
 
+    function getTotalStaked() public view returns (uint256) {
+        return totalStaked;
+    }
+
+    function getStakeBalance() public view returns (uint256) {
+        return balances[msg.sender];
+    }
+
     function stake(uint256 amount) external override checkIsPaused nonReentrant updateReward(msg.sender) {
         if (amount <= 0) revert Staking__ZeroAmount();
         totalStaked += amount;
@@ -193,7 +201,7 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     modifier checkIsPaused() {
-        if (!isPaused) revert OperationIsPaused();
+        if (isPaused) revert OperationIsPaused();
         _;
     }
 

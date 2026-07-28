@@ -103,17 +103,25 @@ contract Staking is Test {
     function test_Stake_TransfersTokensAndUpdatesBalances() public {
         vm.startPrank(user3);
         assertEq(CLToken(tokenProxy).balanceOf(user3), 5 ether);
+        CLToken(tokenProxy).approve(stakingProxy, 1 ether);
         StakingRewards(stakingProxy).stake(1 ether);
-        assertEq(StakingRewards(stakingProxy).balances, 1 ether);
+        assertEq(StakingRewards(stakingProxy).getStakeBalance(), 1 ether);
+        assertEq(StakingRewards(stakingProxy).getTotalStaked(), 1 ether);
+        assertEq(CLToken(tokenProxy).balanceOf(stakingProxy), 1 ether);
         vm.stopPrank();
-
-        // totalStaked += amount;
-        // balances[msg.sender] += amount;
-        // stakingToken.safeTransferFrom(msg.sender, address(this), amount);
     }
 
-    // test_Stake_TransfersTokensAndUpdatesBalances
-    // test_Stake_EmitsStakedEvent
+    function test_Stake_EmitsStakedEvent() public {
+        vm.startPrank(user3);
+        assertEq(CLToken(tokenProxy).balanceOf(user3), 5 ether);
+        CLToken(tokenProxy).approve(stakingProxy, 1 ether);
+        vm.expectEmit(true, false, false, true);
+        emit StakingRewards.Staked(user3, 1 ether);
+        StakingRewards(stakingProxy).stake(1 ether);
+        vm.stopPrank();
+    }
+
+    //
     // test_Stake_RevertsWhenAmountIsZero
     // test_Stake_RevertsWithoutSufficientAllowance
     // test_Stake_RevertsWhenPaused

@@ -176,6 +176,29 @@ contract Staking is Test {
 
     //#endregion
 
+    //#region reward_period
+
+    // test_NotifyRewardAmount_SetsRewardPeriodCorrectly
+    // test_NotifyRewardAmount_TransfersRewardsToContract
+    // test_NotifyRewardAmount_RevertsForUnauthorizedUser
+    // test_NotifyRewardAmount_RevertsWhenRewardIsZero
+    // test_NotifyRewardAmount_PreservesRemainingRewards
+
+    //#endregion
+
+    //#region reward_calc
+
+    // test_Earned_ReturnsCorrectRewardForSingleStaker
+    // test_Earned_DistributesRewardsProportionally
+    // test_RewardPerToken_DoesNotIncreaseWithoutStakers
+    // test_RewardStopsIncreasingAfterPeriodFinish
+    // test_ClaimReward_TransfersAndResetsReward
+    // test_ClaimReward_DoesNotPayTwice
+    // test_Exit_WithdrawsStakeAndClaimsReward
+    // test_Exit_WorksWhenPaused
+
+    //#endregion
+
     function _upgradeToken() internal {
         vm.startPrank(tokenOwner);
         CLToken2 baseToken = new CLToken2();

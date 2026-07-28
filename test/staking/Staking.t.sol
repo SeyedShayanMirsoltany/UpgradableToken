@@ -24,6 +24,11 @@ contract Staking is Test {
         CLToken baseToken = new CLToken();
         bytes memory _data = abi.encodeCall(CLToken.initialize, ("Token", "tkn", 100 ether, 1 ether, tokenOwner));
         tokenProxy = address(new ERC1967Proxy(address(baseToken), _data));
+
+        CLToken(tokenProxy).mint(stakingOwner, 5 ether);
+        CLToken(tokenProxy).mint(user3, 5 ether);
+        CLToken(tokenProxy).mint(user4, 5 ether);
+
         vm.stopPrank();
 
         vm.startPrank(stakingOwner);
@@ -42,6 +47,8 @@ contract Staking is Test {
         _upgradeStaking();
         assertEq(StakingRewards(stakingProxy).version(), 2);
     }
+
+    //#region test_Initialize
 
     function test_Initialize_SetsCorrectValues() public {
         vm.startPrank(stakingOwner);
@@ -88,6 +95,42 @@ contract Staking is Test {
         StakingRewards(stakingProxy).initialize(tokenProxy, tokenProxy, stakingOwner, duration);
         vm.stopPrank();
     }
+
+    //#endregion test_Initialize
+
+    //#region test_Stake_Functions
+
+    function test_Stake_TransfersTokensAndUpdatesBalances() public {
+        vm.startPrank(user3);
+        assertEq(CLToken(tokenProxy).balanceOf(user3), 5 ether);
+        StakingRewards(stakingProxy).stake(1 ether);
+        assertEq(StakingRewards(stakingProxy).balances, 1 ether);
+        vm.stopPrank();
+
+        // totalStaked += amount;
+        // balances[msg.sender] += amount;
+        // stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+    }
+
+    // test_Stake_TransfersTokensAndUpdatesBalances
+    // test_Stake_EmitsStakedEvent
+    // test_Stake_RevertsWhenAmountIsZero
+    // test_Stake_RevertsWithoutSufficientAllowance
+    // test_Stake_RevertsWhenPaused
+    // test_Stake_DoesNotReceivePastRewards
+
+    //#endregion
+
+    //#region test_Withdraw_Functions
+
+    // test_Withdraw_TransfersTokensAndUpdatesBalances
+    // test_Withdraw_EmitsWithdrawnEvent
+    // test_Withdraw_RevertsWhenAmountIsZero
+    // test_Withdraw_RevertsWhenBalanceIsInsufficient
+    // test_Withdraw_PreservesEarnedReward
+    // test_Withdraw_WorksWhenPaused
+
+    //#endregion
 
     function _upgradeToken() internal {
         vm.startPrank(tokenOwner);

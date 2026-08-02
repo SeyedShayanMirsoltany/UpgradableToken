@@ -125,16 +125,10 @@ contract StakingRewards is IStakingRewards, UUPSUpgradeable, OwnableUpgradeable,
         if (reward == 0) revert Staking__ZeroAmount();
 
         rewardsToken.safeTransferFrom(msg.sender, address(this), reward);
+        uint256 leftoverReward = 0;
+        if (block.timestamp < periodFinish) leftoverReward = (periodFinish - block.timestamp) * rewardRate;
 
-        if (block.timestamp >= periodFinish) {
-            rewardRate = reward / rewardsDuration;
-        } else {
-            uint256 remainingTime = periodFinish - block.timestamp;
-            uint256 leftoverReward = remainingTime * rewardRate;
-
-            rewardRate = (reward + leftoverReward) / rewardsDuration;
-        }
-
+        rewardRate = (reward + leftoverReward) / rewardsDuration;
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp + rewardsDuration;
 

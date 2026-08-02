@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import { Test } from "../../lib/forge-std/src/test.sol";
+import { Test, console } from "../../lib/forge-std/src/test.sol";
 import "../../src/token/CLToken2.sol";
 import "../../src/staking/StakingRewards2.sol";
 import "@utils/CustomRoles.sol";
@@ -146,12 +146,28 @@ contract Staking is Test {
         vm.stopPrank();
     }
 
+    function test_notifyRewardAmount() public {
+        vm.startPrank(stakingOwner);
+        CLToken(tokenProxy).approve(stakingProxy, 2 ether);
+        StakingRewards(stakingProxy).notifyRewardAmount(2 ether);
+        assertEq(CLToken(tokenProxy).balanceOf(stakingProxy), 2 ether);
+        assertEq(CLToken(tokenProxy).balanceOf(stakingOwner), 3 ether);
+        vm.stopPrank();
+    }
+
     function test_Stake_DoesNotReceivePastRewards() public {
+        vm.startPrank(stakingOwner);
+        CLToken(tokenProxy).approve(stakingProxy, 2 ether);
+        StakingRewards(stakingProxy).notifyRewardAmount(2 ether);
+        vm.stopPrank();
+
         vm.startPrank(user3);
         CLToken(tokenProxy).approve(stakingProxy, 1 ether);
         StakingRewards(stakingProxy).stake(1 ether);
         vm.stopPrank();
-        vm.warp(block.timestamp + 5000000);
+
+        vm.warp(block.timestamp + 10000);
+
         vm.startPrank(user4);
         CLToken(tokenProxy).approve(stakingProxy, 1 ether);
         StakingRewards(stakingProxy).stake(1 ether);
@@ -159,8 +175,7 @@ contract Staking is Test {
 
         uint256 user3Earned = StakingRewards(stakingProxy).earned(user3);
         uint256 user4Earned = StakingRewards(stakingProxy).earned(user4);
-
-        vm.assertNotEq(user3Earned, user4Earned);
+        assertNotEq(user3Earned, user4Earned);
     }
 
     //#endregion
